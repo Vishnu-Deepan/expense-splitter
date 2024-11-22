@@ -65,7 +65,6 @@ class SettleDebtScreen extends StatelessWidget {
     );
   }
 
-  // Update debt in Firestore
   Future<void> _updateDebt(
       String debtorId, String payToId, double amount) async {
     try {
@@ -96,13 +95,27 @@ class SettleDebtScreen extends StatelessWidget {
           .map((debt) => (debt as num?)?.toDouble() ?? 0.0)
           .reduce((a, b) => a + b);
 
-      // Update Firestore
+      // Update the debts document in Firestore
       await _firestore.collection('debts').doc(debtorId).update({
         'debts': debts,
         'totalDebt': updatedTotalDebt,
       });
+
+      // Add settlement record
+      final settlementDoc = _firestore.collection('settlements').doc(debtorId);
+      final settlementData = (await settlementDoc.get()).data() ?? {};
+      double currentSettlement =
+          (settlementData[payToId] as num?)?.toDouble() ?? 0.0;
+
+      // Update settlement amount
+      settlementData[payToId] = currentSettlement + amount;
+
+      // Update or create the settlement document
+      await settlementDoc.set(settlementData);
+
+      print('Debt and settlements updated successfully.');
     } catch (e) {
-      print('Error updating debt: $e');
+      print('Error updating debt and settlement: $e');
     }
   }
 

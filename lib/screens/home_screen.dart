@@ -1,3 +1,4 @@
+import 'package:expense_splitter/screens/expense_analysis_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; // For date formatting
@@ -177,6 +178,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (_) => SettleDebtScreen()),
               ),
               child: const Text('Settle Debts'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ExpenseAnalysisScreen()),
+              ),
+              child: const Text('Expense Analysis'),
             ),
             const SizedBox(height: 20),
 
