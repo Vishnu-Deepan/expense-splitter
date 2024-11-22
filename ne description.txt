@@ -1,0 +1,26 @@
+Expense Splitter App
+Project Description
+The Expense Splitter App is a simple yet powerful mobile application built with Flutter and Firebase. This app allows users to easily manage and split expenses among a group of people, without the need for an internet connection. Unlike other expense splitter apps that require every user to log in and be connected to the internet, the Expense Splitter App works entirely offline, storing all data locally on the device. Once the device is back online, the app automatically syncs the data with Firebase Firestore.
+
+This app solves the problem of needing network connectivity or logging into separate devices when managing group expenses during trips, events, or shared living situations. Whether you are in a remote area with no network or prefer the simplicity of an offline solution, this app enables one user to manage all expenses on a single device, which will later be synced when internet connectivity is available.
+
+Key Features
+No Login Required: No need to create accounts or share personal information.
+Offline Functionality: The app is fully functional without an internet connection, allowing users to add members, log expenses, and calculate debts at any time.
+Local Storage with Firebase: All data (members, expenses, debts) is stored locally on the device using Firebase Firestore's offline persistence. The data will automatically sync to the cloud once the device reconnects to the internet.
+Simple, Intuitive UI: Easily add members, log expenses, calculate who owes whom, and settle debts with a clean and user-friendly interface.
+Data Syncing: When online, data is automatically synced to Firebase Firestore, making it easy to manage and retrieve data from multiple devices or across sessions.
+Core Functionality
+Add Members: Users can easily add new members by entering their names. Members are stored locally and synced with Firestore when online.
+Log Expenses: Users can add expenses, specifying the title, amount, who paid, and which members were involved. Expenses are stored locally and uploaded to Firestore when internet access is restored.
+Debt Calculation: The app automatically calculates how much each person owes after an expense is logged, based on the amount split equally among the involved members.
+Debt Settlement: Users can settle debts by paying part or all of what they owe. Once debts are paid, the records are updated accordingly, and synced with Firestore when online.
+Technical Features
+Offline First: The app is designed to work without an internet connection, ensuring that users can always track their expenses and debts, no matter where they are.
+Firebase Syncing: Firebase Firestore's offline persistence automatically saves data locally and syncs it with the cloud once an internet connection is available. This eliminates the need for complex server-side setups while ensuring data consistency across devices.
+Local Storage: Data is stored on the device using Firebase Firestore's offline persistence features, ensuring that information is always accessible even when there’s no internet.
+Simple Setup: Add members, log expenses, and calculate debts—just like in more complex apps, but with a focus on simplicity and offline functionality.
+Ideal for
+Group Travelers: Perfect for managing group expenses during trips where there’s no network connection.
+Roommates & Shared Living: Ideal for roommates who need to split expenses for utilities, groceries, and rent, all stored locally until internet access is available.
+Friends & Social Events: Easily manage shared expenses at events without worrying about multiple devices or logins.
