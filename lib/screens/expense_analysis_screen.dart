@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -6,7 +7,12 @@ class ExpenseAnalysisScreen extends StatelessWidget {
 
   // Fetch the total amount spent overall from the expenses collection
   Future<double> _fetchTotalSpentOverall() async {
-    final snapshot = await _firestore.collection('expenses').get();
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    final snapshot = await _firestore
+        .collection('expenses')
+        .where("userId", isEqualTo: userId)
+        .get();
     double totalSpent = 0.0;
 
     for (var doc in snapshot.docs) {
@@ -18,7 +24,12 @@ class ExpenseAnalysisScreen extends StatelessWidget {
 
   // Fetch the total amount spent by each individual from the expenses collection
   Future<Map<String, double>> _fetchTotalSpentByIndividual() async {
-    final snapshot = await _firestore.collection('expenses').get();
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    final snapshot = await _firestore
+        .collection('expenses')
+        .where("userId", isEqualTo: userId)
+        .get();
     Map<String, double> totalSpent = {};
 
     for (var doc in snapshot.docs) {

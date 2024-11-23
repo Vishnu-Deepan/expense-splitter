@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -23,7 +24,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _fetchMembers() async {
-    final snapshot = await _firestore.collection('members').get();
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    final snapshot = await _firestore
+        .collection('members')
+        .where('userId', isEqualTo: userId)
+        .get();
     setState(() {
       _members = snapshot.docs.map((doc) {
         return {
@@ -41,7 +46,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final equalShare = _amount / _selectedParticipants.length;
 
       // Add expense to 'expenses' collection
+      User? user = FirebaseAuth.instance.currentUser;
       final expenseRef = await _firestore.collection('expenses').add({
+        "userId": user?.uid,
         "title": _title,
         "amount": _amount,
         "payerId": _selectedPayer,
@@ -65,6 +72,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   Future<void> _updateDebts(
       String payerId, String participantId, double amount) async {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+
     final payerDoc =
         await _firestore.collection('debts').doc(participantId).get();
 
@@ -74,12 +83,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       currentDebts[payerId] = (currentDebts[payerId] ?? 0.0) + amount;
 
       await _firestore.collection('debts').doc(participantId).update({
+        "userId": userId,
         "debts": currentDebts,
         "totalDebt": (payerDoc['totalDebt'] ?? 0.0) + amount,
       });
     } else {
       // Create new debt entry
       await _firestore.collection('debts').doc(participantId).set({
+        "userId": userId,
         "debts": {payerId: amount},
         "totalDebt": amount,
       });
@@ -125,6 +136,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               SizedBox(height: 20),
               Text('Participants', style: TextStyle(fontSize: 16)),
+              ElevatedButton(
+                onPressed: _toggleSelectAll,
+                child: Text(_selectedParticipants.length == _members.length
+                    ? 'Deselect All'
+                    : 'Select All'),
+              ),
               ..._members.map((member) {
                 return CheckboxListTile(
                   title: Text(member['name']),
@@ -150,5 +167,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  // Function to toggle the "Select All" functionality
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedParticipants.length == _members.length) {
+        // Deselect all if all are selected
+        _selectedParticipants.clear();
+      } else {
+        // Select all if not all are selected
+        _selectedParticipants =
+            _members.map((member) => member['id'] as String).toList();
+      }
+    });
   }
 }

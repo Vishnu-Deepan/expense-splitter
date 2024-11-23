@@ -1,8 +1,8 @@
 import 'package:expense_splitter/screens/expense_analysis_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:shared_preferences/shared_preferences.dart'; // For shared preferences
+import 'package:intl/intl.dart';
 import 'add_member_screen.dart';
 import 'add_expense_screen.dart';
 import 'settle_debt_screen.dart';
@@ -20,23 +20,48 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _confirmationController = TextEditingController();
   bool _membersAdded = false; // To track if members are added
 
-  // Function to load _membersAdded value from SharedPreferences
+  // Function to load _membersAdded value from Firestore
   void _loadMembersAdded() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _membersAdded = prefs.getBool('membersAdded') ?? false;
-    });
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Fetch the flag for the logged-in user from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists && userDoc['membersAdded'] != null) {
+        setState(() {
+          _membersAdded = userDoc['membersAdded'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching membersAdded flag: $e');
+    }
   }
 
-  // Function to save _membersAdded value to SharedPreferences
+  // Function to save _membersAdded value to Firestore
   void _saveMembersAdded() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('membersAdded', _membersAdded);
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Save the flag to Firestore for the current user
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({'membersAdded': _membersAdded}, SetOptions(merge: true));
+    } catch (e) {
+      print('Error saving membersAdded flag: $e');
+    }
   }
 
   @override
   void initState() {
     super.initState();
+
     _loadMembersAdded(); // Load _membersAdded value when the screen is initialized
   }
 
@@ -63,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _membersAdded = false;
       });
 
-      // Save the updated _membersAdded value to SharedPreferences
+      // Save the updated _membersAdded value to Firestore
       _saveMembersAdded();
 
       // Optionally, navigate back or reset the app to its initial state
@@ -83,9 +108,16 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, String> memberNames = {};
 
     try {
-      // Fetch members' data
+      // Fetch members' data from Firestore using the current logged-in user ID
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        throw Exception("User is not logged in");
+      }
+
+      // Fetch only the members that belong to the logged-in user
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('members')
+          .where('userId', isEqualTo: userId) // Filter by userId
           .where(FieldPath.documentId, whereIn: memberIds)
           .get();
 
@@ -103,8 +135,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Function to fetch expenses data from Firestore
   Stream<List<Map<String, dynamic>>> _getExpensesStream() {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      throw Exception("User is not logged in");
+    }
+
     return FirebaseFirestore.instance
         .collection('expenses')
+        .where('userId',
+            isEqualTo:
+                userId) // Filter expenses that involve the logged-in user
         .orderBy('timestamp') // Order by timestamp to show in correct order
         .snapshots()
         .map((snapshot) {
@@ -118,11 +158,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    User? user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       drawer: Drawer(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            SizedBox(
+              height: 20,
+            ),
+            Text(
+              user != null && user.displayName != null
+                  ? user.displayName!
+                  : "Welcome",
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             ElevatedButton(
               onPressed: () {
                 _showResetConfirmationDialog(context);
@@ -138,7 +191,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      appBar: AppBar(title: const Text('Expense Splitter')),
+      appBar: AppBar(
+        title: const Text('Expense Splitter'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.exit_to_app),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -155,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onMembersAdded: (bool updated) {
                           setState(() {
                             _membersAdded = updated; // Update the flag
-                            _saveMembersAdded(); // Save to shared preferences
+                            _saveMembersAdded(); // Save to Firestore
                           });
                         },
                       ),
@@ -245,9 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     children: [
                                       Text(
                                         DateFormat.yMMMd().format(
-                                                expense['timestamp']
-                                                    .toDate()) ??
-                                            'N/A',
+                                            expense['timestamp'].toDate()),
                                         style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold),

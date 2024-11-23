@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -6,7 +7,11 @@ class SettleDebtScreen extends StatelessWidget {
 
   // Fetch debts from Firestore
   Future<List<Map<String, dynamic>>> _fetchDebts() async {
-    final snapshot = await _firestore.collection('debts').get();
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    final snapshot = await _firestore
+        .collection('debts')
+        .where("userId", isEqualTo: userId)
+        .get();
     return snapshot.docs.map((doc) {
       final data = doc.data();
       return {
@@ -24,15 +29,20 @@ class SettleDebtScreen extends StatelessWidget {
   }
 
   // Show payment dialog
-  Future<void> _showPaymentDialog(BuildContext context, String payerName,
-      double currentDebt, String debtorId, String payToId) async {
+  Future<void> _showPaymentDialog(
+      BuildContext context,
+      String owedToName,
+      String payerName,
+      double currentDebt,
+      String debtorId,
+      String payToId) async {
     TextEditingController amountController = TextEditingController();
 
     return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Pay Now - $payerName'),
+          title: Text('$owedToName Paying To - $payerName'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -195,12 +205,13 @@ class SettleDebtScreen extends StatelessWidget {
 
                               return ListTile(
                                 title: Text(
-                                    '$memberName owes $owedToName ₹${debtAmount.toStringAsFixed(2)}'),
+                                    'Pending for $owedToName : ₹${debtAmount.toStringAsFixed(2)}'),
                                 trailing: IconButton(
                                   icon: const Icon(Icons.payment),
                                   onPressed: () {
                                     _showPaymentDialog(
                                         context,
+                                        memberName,
                                         owedToName,
                                         debtAmount,
                                         memberDebt['memberId'],
