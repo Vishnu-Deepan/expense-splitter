@@ -96,6 +96,10 @@ class FirebaseService {
           .collection('debts')
           .where("userId", isEqualTo: userId)
           .get();
+      final individualExpense = await _firestore
+          .collection('individualExpense')
+          .where("userId", isEqualTo: userId)
+          .get();
 
       // Reference the user's document in the 'users' collection
       DocumentReference userDocRef =
@@ -118,6 +122,11 @@ class FirebaseService {
 
       // Delete all documents in the 'debts' collection
       for (var doc in debts.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete all documents in the 'individualExpense' collection
+      for (var doc in individualExpense.docs) {
         await doc.reference.delete();
       }
 

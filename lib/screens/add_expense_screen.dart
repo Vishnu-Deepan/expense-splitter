@@ -56,6 +56,30 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         "timestamp": FieldValue.serverTimestamp(),
       });
 
+      // Increase the initialPay for the payer in the 'individualExpense' collection
+      final individualExpenseDoc =
+          _firestore.collection('individualExpense').doc(_selectedPayer);
+
+      // Fetch the current expense data for the payer
+      final individualExpenseData =
+          (await individualExpenseDoc.get()).data() ?? {};
+      double initialPay =
+          (individualExpenseData['initialPay'] as num?)?.toDouble() ?? 0.0;
+      double debtPay =
+          (individualExpenseData['debtPay'] as num?)?.toDouble() ?? 0.0;
+
+      // Increase the initial payment by the total amount of the expense
+      initialPay += _amount;
+
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+      // Update the 'individualExpense' document for the payer
+      print(userId);
+      await individualExpenseDoc.set({
+        'userId': userId,
+        'initialPay': initialPay,
+        'debtPay': debtPay, // Debt pay remains unchanged
+      });
+
       // Update debts for each participant
       for (final participantId in _selectedParticipants) {
         if (participantId != _selectedPayer) {

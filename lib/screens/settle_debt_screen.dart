@@ -78,6 +78,7 @@ class SettleDebtScreen extends StatelessWidget {
   Future<void> _updateDebt(
       String debtorId, String payToId, double amount) async {
     try {
+      // Fetch debtor document from the 'debts' collection
       final debtorDoc =
           await _firestore.collection('debts').doc(debtorId).get();
       if (!debtorDoc.exists) {
@@ -111,21 +112,74 @@ class SettleDebtScreen extends StatelessWidget {
         'totalDebt': updatedTotalDebt,
       });
 
-      // Add settlement record
-      final settlementDoc = _firestore.collection('settlements').doc(debtorId);
-      final settlementData = (await settlementDoc.get()).data() ?? {};
-      double currentSettlement =
-          (settlementData[payToId] as num?)?.toDouble() ?? 0.0;
+      // Now update the 'individualExpense' collection for the debtor
+      final debtorExpenseDoc =
+          _firestore.collection('individualExpense').doc(debtorId);
 
-      // Update settlement amount
-      settlementData[payToId] = currentSettlement + amount;
+// Fetch the current expense data for the debtor
+      final debtorExpenseSnapshot = await debtorExpenseDoc.get();
 
-      // Update or create the settlement document
-      await settlementDoc.set(settlementData);
+      double debtorDebtPay = 0.0;
+      double debtorInitialPay = 0.0;
 
-      print('Debt and settlements updated successfully.');
+// Check if the document exists for the debtor
+      if (debtorExpenseSnapshot.exists) {
+        // If the document exists, get the current data
+        final debtorExpenseData = debtorExpenseSnapshot.data() ?? {};
+        debtorDebtPay =
+            (debtorExpenseData['debtPay'] as num?)?.toDouble() ?? 0.0;
+        debtorInitialPay =
+            (debtorExpenseData['initialPay'] as num?)?.toDouble() ?? 0.0;
+      }
+
+// Increase debt payment by the amount the debtor paid
+      debtorDebtPay += amount;
+
+// Update the document in Firestore (use merge: true to only update specific fields)
+      await debtorExpenseDoc.set({
+        'initialPay': debtorInitialPay,
+        // Maintain the initialPay
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        // Keep track of the userId
+        'debtPay': debtorDebtPay,
+        // Increase debtPay by the paid amount
+      }, SetOptions(merge: true)); // Merge the changes instead of overwriting
+
+// Now update the 'individualExpense' collection for the payer
+      final payerExpenseDoc =
+          _firestore.collection('individualExpense').doc(payToId);
+
+// Fetch the current expense data for the payer
+      final payerExpenseSnapshot = await payerExpenseDoc.get();
+
+      double payerDebtPay = 0.0;
+      double payerInitialPay = 0.0;
+
+// Check if the document exists for the payer
+      if (payerExpenseSnapshot.exists) {
+        // If the document exists, get the current data
+        final payerExpenseData = payerExpenseSnapshot.data() ?? {};
+        payerDebtPay = (payerExpenseData['debtPay'] as num?)?.toDouble() ?? 0.0;
+        payerInitialPay =
+            (payerExpenseData['initialPay'] as num?)?.toDouble() ?? 0.0;
+      }
+
+// Decrease the debt payment (initialPay) by the settled amount (subtraction)
+      payerInitialPay -= amount;
+
+// Update the document in Firestore (use merge: true to only update specific fields)
+      await payerExpenseDoc.set({
+        'initialPay': payerInitialPay,
+        // Decrease the initialPay
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        // Keep track of the userId
+        'debtPay': payerDebtPay,
+        // Maintain the debtPay (it’s not modified here)
+      }, SetOptions(merge: true)); // Merge the changes instead of overwriting
+
+      print('Debt and individual expenses updated successfully.');
     } catch (e) {
-      print('Error updating debt and settlement: $e');
+      print('Error updating debt and individual expenses: $e');
     }
   }
 

@@ -191,13 +191,55 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+      floatingActionButton: ElevatedButton(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+        ),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AddExpenseScreen()),
+        ),
+        child: const Text(
+          'Add Expense',
+          style: TextStyle(
+            fontSize: 20,
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: const Text('Expense Splitter'),
         actions: [
           IconButton(
             icon: Icon(Icons.exit_to_app),
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+              // Show a confirmation dialog before signing out
+              bool? confirmSignOut = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Sign Out'),
+                    content: const Text('Are you sure you want to sign out?'),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(false); // User canceled
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(true); // User confirmed
+                        },
+                        child: const Text('Yes'),
+                      ),
+                    ],
+                  );
+                },
+              );
             },
           ),
         ],
@@ -228,13 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const Text('Add Members'),
               ),
             ],
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AddExpenseScreen()),
-              ),
-              child: const Text('Add Expenses'),
-            ),
+
             ElevatedButton(
               onPressed: () => Navigator.push(
                 context,
@@ -306,11 +342,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      // Title and Amount come first
                                       Text(
-                                        DateFormat.yMMMd().format(
-                                            expense['timestamp'].toDate()),
+                                        'Title: ${expense['title']}',
                                         style: const TextStyle(
-                                            fontSize: 14,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 8),
@@ -319,18 +355,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                         style: const TextStyle(fontSize: 16),
                                       ),
                                       const SizedBox(height: 8),
+
+                                      // Time and Date
+                                      Text(
+                                        '${DateFormat.yMMMd().format(expense['timestamp'].toDate())} at ${DateFormat.Hm().format(expense['timestamp'].toDate())}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Payer Info
                                       Text(
                                         'Payer: ${memberNames[expense['payerId']] ?? 'Unknown'}',
                                         style: const TextStyle(fontSize: 14),
                                       ),
                                       const SizedBox(height: 8),
+
+                                      // Shared With
                                       Text(
                                         'Shared With: ${expense['sharedWith'].map((id) => memberNames[id] ?? 'Unknown').join(', ')}',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Title: ${expense['title']}',
                                         style: const TextStyle(fontSize: 14),
                                       ),
                                     ],

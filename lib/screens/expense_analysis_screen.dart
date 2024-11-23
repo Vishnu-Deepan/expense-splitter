@@ -27,16 +27,17 @@ class ExpenseAnalysisScreen extends StatelessWidget {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
 
     final snapshot = await _firestore
-        .collection('expenses')
+        .collection('individualExpense')
         .where("userId", isEqualTo: userId)
         .get();
     Map<String, double> totalSpent = {};
 
     for (var doc in snapshot.docs) {
-      final payerId = doc.data()['payerId'] as String;
-      final amount = (doc.data()['amount'] as num).toDouble();
+      final memberId = doc.id;
+      final debtPay = (doc.data()['debtPay'] as num).toDouble();
+      final initialPay = (doc.data()['initialPay'] as num).toDouble();
 
-      totalSpent[payerId] = (totalSpent[payerId] ?? 0.0) + amount;
+      totalSpent[memberId] = debtPay + initialPay;
     }
 
     return totalSpent;
@@ -46,6 +47,18 @@ class ExpenseAnalysisScreen extends StatelessWidget {
   Future<String> _getMemberName(String memberId) async {
     final doc = await _firestore.collection('members').doc(memberId).get();
     return doc.data()?['name'] ?? 'Unknown';
+  }
+
+  // Fetch the total number of members
+  Future<int> _fetchTotalMembers() async {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    final snapshot = await _firestore
+        .collection('individualExpense')
+        .where("userId", isEqualTo: userId)
+        .get();
+
+    return snapshot.docs.length;
   }
 
   @override
@@ -58,10 +71,12 @@ class ExpenseAnalysisScreen extends StatelessWidget {
         future: Future.wait([
           _fetchTotalSpentOverall(),
           _fetchTotalSpentByIndividual(),
+          _fetchTotalMembers(),
         ]).then((results) {
           return {
             'totalSpentOverall': results[0],
             'totalSpentByIndividual': results[1],
+            'totalMembers': results[2],
           };
         }),
         builder: (context, snapshot) {
@@ -78,6 +93,11 @@ class ExpenseAnalysisScreen extends StatelessWidget {
           final totalSpentOverall = snapshot.data?['totalSpentOverall'] ?? 0.0;
           final totalSpentByIndividual =
               snapshot.data?['totalSpentByIndividual'] ?? {};
+          final totalMembers = snapshot.data?['totalMembers'] ?? 0;
+
+          // Calculate individual amount that must be spent
+          double individualShare =
+              totalMembers > 0 ? totalSpentOverall / totalMembers : 0.0;
 
           return ListView(
             children: [
@@ -85,6 +105,12 @@ class ExpenseAnalysisScreen extends StatelessWidget {
               ListTile(
                 title: const Text('Total Amount Spent Overall'),
                 trailing: Text('₹${totalSpentOverall.toStringAsFixed(2)}'),
+              ),
+
+              // Display the individual share (amount that each person should spend)
+              ListTile(
+                title: const Text('Each member must spend'),
+                trailing: Text('₹${individualShare.toStringAsFixed(2)}'),
               ),
 
               const Divider(),
