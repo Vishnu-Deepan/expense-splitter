@@ -162,17 +162,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       drawer: Drawer(
+        backgroundColor: Colors.grey[900],
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            SizedBox(
+            const SizedBox(
               height: 20,
             ),
             Text(
               user != null && user.displayName != null
                   ? user.displayName!
                   : "Welcome",
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -191,19 +192,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: ElevatedButton(
-        style: ButtonStyle(
-          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ),
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.deepPurple,
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => AddExpenseScreen()),
         ),
-        child: const Text(
+        icon: const Icon(Icons.add),
+        label: const Text(
           'Add Expense',
           style: TextStyle(
             fontSize: 20,
@@ -211,13 +207,34 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       appBar: AppBar(
-        title: const Text('Expense Splitter'),
+        iconTheme: const IconThemeData(
+          color: Colors.white, // Change the drawer (hamburger) icon color here
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.black, Colors.grey[850]!], // Matching gradient
+              end: Alignment.topCenter,
+              begin: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+        centerTitle: true,
+        title: const Text(
+          'Expense Splitter',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.exit_to_app),
+            icon: const Icon(Icons.exit_to_app),
             onPressed: () async {
               // Show a confirmation dialog before signing out
-              bool? confirmSignOut = await showDialog<bool>(
+              await showDialog<bool>(
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
@@ -231,8 +248,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: const Text('Cancel'),
                       ),
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.of(context).pop(true); // User confirmed
+                          await FirebaseAuth.instance.signOut();
                         },
                         child: const Text('Yes'),
                       ),
@@ -244,154 +262,313 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Only show Add Members button if members are not added yet
-            if (!_membersAdded) ...[
-              ElevatedButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddMemberScreen(
-                        isMembersAdded: _membersAdded,
-                        onMembersAdded: (bool updated) {
-                          setState(() {
-                            _membersAdded = updated; // Update the flag
-                            _saveMembersAdded(); // Save to Firestore
-                          });
-                        },
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('Add Members'),
-              ),
-            ],
-
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => SettleDebtScreen()),
-              ),
-              child: const Text('Settle Debts'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ExpenseAnalysisScreen()),
-              ),
-              child: const Text('Expense Analysis'),
-            ),
-            const SizedBox(height: 20),
-
-            // Display Expenses in Cards
-            StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _getExpensesStream(),
-              // Fetch expenses using StreamBuilder
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Text('No expenses found');
-                } else {
-                  List<Map<String, dynamic>> expenses = snapshot.data!;
-
-                  // Extract all member IDs from the expenses to fetch names
-                  Set<String> memberIds = {};
-                  for (var expense in expenses) {
-                    memberIds.add(expense['payerId']);
-                    memberIds.addAll(List<String>.from(expense['sharedWith']));
-                  }
-
-                  // Fetch the names of all members involved
-                  return FutureBuilder<Map<String, String>>(
-                    future: _getMembersNames(memberIds.toList()),
-                    builder: (context, membersSnapshot) {
-                      if (membersSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      } else if (membersSnapshot.hasError) {
-                        return Text(
-                            'Error fetching member names: ${membersSnapshot.error}');
-                      } else if (!membersSnapshot.hasData ||
-                          membersSnapshot.data!.isEmpty) {
-                        return const Text('No member names found');
-                      } else {
-                        Map<String, String> memberNames = membersSnapshot.data!;
-
-                        // Display expenses using member names instead of IDs
-                        return Expanded(
-                          child: ListView.builder(
-                            itemCount: expenses.length,
-                            itemBuilder: (context, index) {
-                              var expense = expenses[index];
-
-                              return Card(
-                                elevation: 5,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Title and Amount come first
-                                      Text(
-                                        'Title: ${expense['title']}',
-                                        style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Amount: ₹${expense['amount'].toString()}',
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // Time and Date
-                                      Text(
-                                        '${DateFormat.yMMMd().format(expense['timestamp'].toDate())} at ${DateFormat.Hm().format(expense['timestamp'].toDate())}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // Payer Info
-                                      Text(
-                                        'Payer: ${memberNames[expense['payerId']] ?? 'Unknown'}',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // Shared With
-                                      Text(
-                                        'Shared With: ${expense['sharedWith'].map((id) => memberNames[id] ?? 'Unknown').join(', ')}',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.black, Colors.grey[850]!], // Dark to grey gradient
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Only show Add Members button if members are not added yet
+              if (!_membersAdded) ...[
+                Material(
+                  elevation: 7.0,
+                  borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+                  child: InkWell(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AddMemberScreen(
+                            isMembersAdded: _membersAdded,
+                            onMembersAdded: (bool updated) {
+                              setState(() {
+                                _membersAdded = updated; // Update the flag
+                                _saveMembersAdded(); // Save to Firestore
+                              });
                             },
                           ),
-                        );
-                      }
+                        ),
+                      );
                     },
-                  );
-                }
-              },
-            ),
-          ],
+                    child: Ink(
+                      decoration: const BoxDecoration(
+                        gradient:
+                            LinearGradient(colors: [Colors.red, Colors.pink]),
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
+                      height: 60, // Increased height
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(width: 48),
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                'Add Members',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  // Make text bold
+                                  color: Colors.white,
+                                  // Text color for contrast
+                                  fontSize:
+                                      16, // Adjust font size for better visibility
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 48.0,
+                            child: Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 23.0,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(
+                height: 20,
+              ),
+
+              Material(
+                elevation: 7.0,
+                borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+                child: InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SettleDebtScreen()),
+                  ),
+                  child: Ink(
+                    decoration: const BoxDecoration(
+                      gradient:
+                          LinearGradient(colors: [Colors.blue, Colors.green]),
+                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                    ),
+                    height: 60, // Increased height
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(width: 48),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              'Settle Debts',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, // Make text bold
+                                color: Colors.white, // Text color for contrast
+                                fontSize:
+                                    16, // Adjust font size for better visibility
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 48.0,
+                          child: Icon(
+                            Icons.attach_money,
+                            color: Colors.white,
+                            size: 23.0,
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+              Material(
+                elevation: 7.0,
+                borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+                child: InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ExpenseAnalysisScreen()),
+                  ),
+                  child: Ink(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: [Colors.orangeAccent, Colors.orange]),
+                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                    ),
+                    height: 60, // Increased height
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(width: 48),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              'Expense Analysis',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, // Make text bold
+                                color: Colors.white, // Text color for contrast
+                                fontSize:
+                                    16, // Adjust font size for better visibility
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 48.0,
+                          child: Icon(
+                            Icons.pie_chart,
+                            color: Colors.white,
+                            size: 23.0,
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Display Expenses in Cards
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _getExpensesStream(),
+                // Fetch expenses using StreamBuilder
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Text('No expenses found');
+                  } else {
+                    List<Map<String, dynamic>> expenses = snapshot.data!;
+
+                    // Extract all member IDs from the expenses to fetch names
+                    Set<String> memberIds = {};
+                    for (var expense in expenses) {
+                      memberIds.add(expense['payerId']);
+                      memberIds
+                          .addAll(List<String>.from(expense['sharedWith']));
+                    }
+
+                    // Fetch the names of all members involved
+                    return FutureBuilder<Map<String, String>>(
+                      future: _getMembersNames(memberIds.toList()),
+                      builder: (context, membersSnapshot) {
+                        if (membersSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        } else if (membersSnapshot.hasError) {
+                          return Text(
+                              'Error fetching member names: ${membersSnapshot.error}');
+                        } else if (!membersSnapshot.hasData ||
+                            membersSnapshot.data!.isEmpty) {
+                          return const Text('No member names found');
+                        } else {
+                          Map<String, String> memberNames =
+                              membersSnapshot.data!;
+
+                          // Display expenses using member names instead of IDs
+                          return Expanded(
+                            child: ListView.builder(
+                              itemCount: expenses.length,
+                              itemBuilder: (context, index) {
+                                var expense = expenses[index];
+
+                                return Card(
+                                  elevation: 3,
+                                  // Lower elevation for a more subtle shadow
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                        16), // More rounded for a modern feel
+                                  ),
+                                  color: Colors.grey[850],
+                                  // Dark background color
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    // Increased padding for a more spacious layout
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Title and Amount come first
+                                        Text(
+                                          textAlign: TextAlign.center,
+                                          '${expense['title']}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            // White text for contrast
+                                            fontSize: 18,
+                                            // Larger font for the title
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Amount: ₹${expense['amount'].toString()}',
+                                          style: const TextStyle(
+                                            color: Colors.greenAccent,
+                                            // A distinct color for the amount
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        // Time and Date
+                                        Text(
+                                          '${DateFormat.yMMMd().format(expense['timestamp'].toDate())} at ${DateFormat.Hm().format(expense['timestamp'].toDate())}',
+                                          style: TextStyle(
+                                            color: Colors.grey[400],
+                                            // Lighter grey for less emphasis
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        // Payer Info
+                                        Text(
+                                          'Payer: ${memberNames[expense['payerId']] ?? 'Unknown'}',
+                                          style: TextStyle(
+                                            color: Colors.grey[300],
+                                            // Slightly lighter grey for details
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+
+                                        // Shared With
+                                        Text(
+                                          'Shared With: ${expense['sharedWith'].map((id) => memberNames[id] ?? 'Unknown').join(', ')}',
+                                          style: TextStyle(
+                                            color: Colors.grey[300],
+                                            // Matching grey text for consistency
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

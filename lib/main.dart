@@ -17,7 +17,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Expense Splitter App',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        cardColor: Colors.grey[850],
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       home: AuthWrapper(),
     );
   }
