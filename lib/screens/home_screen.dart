@@ -1,4 +1,5 @@
 import 'package:expense_splitter/screens/expense_analysis_screen.dart';
+import 'package:expense_splitter/screens/print_report.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -394,7 +395,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ExpenseAnalysisScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const ExpenseAnalysisScreen()),
                   ),
                   child: Ink(
                     decoration: const BoxDecoration(

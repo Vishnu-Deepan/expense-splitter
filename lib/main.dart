@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Expense Splitter App',
+      title: 'Expense Splitter',
       theme: ThemeData(
         brightness: Brightness.dark,
         cardColor: Colors.grey[850],
